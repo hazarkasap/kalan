@@ -8,7 +8,7 @@
 //   Hata olursa execute + waitForTransactionReceipt fallback. Revert "REVERT" diye loglanir.
 // - Gas: estimateContractGas * 110/100, elle gas parametresi.
 // - USDC approve baslangicta her bot icin bir kez.
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -106,24 +106,26 @@ type SyncReceipt = { transactionHash: `0x${string}`; status: 'success' | 'revert
 
 // Tek cagida gonder + makbuz (writeContractSync -> eth_sendRawTransactionSync;
 // Monad iki RPC de destekliyor). Desteklenmezse execute + waitForTransactionReceipt.
-async function sendSync(botIdx: number, call: BotCall): Promise<SyncReceipt> {
+// fixedGas verilmisse estimateContractGas KULLANMA (revert edecek cagrilar icin;
+// estimate simule edip basarir, makbuz donmez).
+async function sendSync(botIdx: number, call: BotCall, fixedGas?: bigint): Promise<SyncReceipt> {
   const client = botClients[botIdx]
   const account = botAccounts[botIdx]
 
-  const gas = await publicClient.estimateContractGas({
+  const gas = fixedGas ?? (await publicClient.estimateContractGas({
     address: call.address,
     abi: call.abi,
     functionName: call.functionName,
     args: call.args,
     account: account.address,
-  } as never)
+  } as never)) * 110n / 100n
   const callWithGas: Record<string, unknown> = {
     address: call.address,
     abi: call.abi,
     functionName: call.functionName,
     args: call.args,
     account: account.address,
-    gas: (gas * 110n) / 100n,
+    gas,
   }
 
   try {
@@ -141,10 +143,18 @@ async function sendSync(botIdx: number, call: BotCall): Promise<SyncReceipt> {
   }
 }
 
-async function botSend(botIdx: number, call: BotCall, label: string): Promise<boolean> {
+async function botSend(botIdx: number, call: BotCall, label: string, fixedGas?: bigint): Promise<boolean> {
   const name = BOT_NAMES[botIdx]
   try {
-    const r = await sendSync(botIdx, call)
+    const r = await sendSync(botIdx, call, fixedGas)
+    raceTx.push({
+      bot: name,
+      label,
+      tx: r.transactionHash,
+      status: r.status,
+      premiumBps: call.functionName === 'liquidate' ? premiumLabel(label) : '-',
+      block: r.blockNumber.toString(),
+    })
     if (r.status === 'reverted') {
       log(`${label} bot=${name} tx=${r.transactionHash} status=reverted  (bot ${name} reverted)`)
       return false
@@ -155,6 +165,11 @@ async function botSend(botIdx: number, call: BotCall, label: string): Promise<bo
     log(`${label} bot=${name} HATA: ${shortErr(err)}`)
     return false
   }
+}
+
+function premiumLabel(label: string): string {
+  const m = label.match(/(\d+)bps/)
+  return m ? m[1] : label.includes('fixed') ? '1000' : '-'
 }
 
 function shortErr(err: unknown): string {
@@ -169,6 +184,23 @@ let sentFlag = false
 let startBlock: bigint | null = null // Flagged olayindan bir kez alinir
 const sentFair = [false, false, false]
 let raceDone = false
+let busy = false // onBlock yeniden giris korumasi (viem onBlock'u await etmez, pingpongf yapar)
+
+// Yarisi kaydi: konsol ozeti + bot/runs/<ISO>.json
+type RaceRecord = { bot: string; label: string; tx: string; status: string; premiumBps: string; block: string }
+const raceTx: RaceRecord[] = []
+
+async function writeRaceFile(summary: Record<string, unknown>) {
+  try {
+    const dir = resolve(here, 'runs')
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    const iso = new Date().toISOString().replace(/[:.]/g, '-')
+    writeFileSync(resolve(dir, `${iso}.json`), JSON.stringify(summary, null, 2))
+    log(`ozet yazildi: bot/runs/${iso}.json`)
+  } catch (err) {
+    log(`runs dosyasi yazilamadi: ${shortErr(err)}`)
+  }
+}
 
 async function main() {
   log(`kalan-bot start fairLend=${FAIRLEND} fixed=${BORROWER_FIXED} fair=${BORROWER_FAIR}`)
@@ -251,61 +283,96 @@ async function readBool(fn: 'isLiquidatable', user: Address): Promise<boolean> {
 }
 
 async function onBlock(blockNumber: bigint) {
-  if (raceDone) return
-
-  // a) PriceSet sonrasi: borrowerFixed isLiquidatable ise bot A hemen liquidate (bir kez)
-  if (!sentFixed && (await readBool('isLiquidatable', BORROWER_FIXED))) {
-    log(`fixed liquidatable @block ${blockNumber} -> bot A liquidate`)
-    sentFixed = await botSend(
-      0,
-      { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FIXED] },
-      'fixed-liquidate',
-    )
-  }
-
-  // b) borrowerFair liquidatable ise bot A flag gonderir (bir kez)
-  if (startBlock === null) {
-    if (!(await readBool('isLiquidatable', BORROWER_FAIR))) return
-    const p = (await publicClient.readContract({
-      address: FAIRLEND,
-      abi: fairLendAbi,
-      functionName: 'positions',
-      args: [BORROWER_FAIR],
-    })) as [bigint, bigint, number, bigint]
-    if (p[3] !== 0n) {
-      startBlock = p[3]
-      log(`flagged bulundu: startBlock=${p[3]} @block ${blockNumber}`)
-    } else if (!sentFlag) {
-      log(`fair liquidatable @block ${blockNumber} -> bot A flag`)
-      sentFlag = await botSend(
+  if (raceDone || busy) return
+  busy = true
+  try {
+    // a) PriceSet sonrasi: borrowerFixed isLiquidatable ise bot A hemen liquidate (bir kez)
+    if (!sentFixed && (await readBool('isLiquidatable', BORROWER_FIXED))) {
+      log(`fixed liquidatable @block ${blockNumber} -> bot A liquidate`)
+      sentFixed = true // in-flight guard
+      const ok = await botSend(
         0,
-        { address: FAIRLEND, abi: fairLendAbi, functionName: 'flag', args: [BORROWER_FAIR] },
-        'flag',
+        { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FIXED] },
+        'fixed-liquidate',
       )
-      // flag gonderdiyse gelecek bloklarda Flagged olayi / positions ile startBlock gelir
+      if (!ok) sentFixed = false
     }
-    return
-  }
 
-  // c) fair yarisi: nextPremium = min(1000, (blockNumber+1-startBlock)*50) bps
-  const nextPremium = win((blockNumber + 1n - startBlock) * STEP_BPS)
-  for (let i = 0; i < 3; i++) {
-    if (sentFair[i] || nextPremium < THRESHOLD_BPS[i]) continue
-    log(`esik asildi: bot=${BOT_NAMES[i]} nextPremium=${nextPremium}bps @block ${blockNumber}`)
-    const ok = await botSend(
-      i,
-      { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FAIR] },
-      `fair-liquidate(${nextPremium}bps)`,
-    )
-    if (ok) {
-      sentFair[i] = true
+    // b) borrowerFair liquidatable ise bot A flag gonderir (bir kez)
+    if (startBlock === null) {
+      if (!(await readBool('isLiquidatable', BORROWER_FAIR))) return
+      const pos = (await publicClient.readContract({
+        address: FAIRLEND,
+        abi: fairLendAbi,
+        functionName: 'positions',
+        args: [BORROWER_FAIR],
+      })) as [bigint, bigint, number, bigint]
+      if (pos[3] !== 0n) {
+        startBlock = pos[3]
+        log(`flagged bulundu: startBlock=${pos[3]} @block ${blockNumber}`)
+      } else if (!sentFlag) {
+        log(`fair liquidatable @block ${blockNumber} -> bot A flag`)
+        sentFlag = true // in-flight guard
+        const ok = await botSend(
+          0,
+          { address: FAIRLEND, abi: fairLendAbi, functionName: 'flag', args: [BORROWER_FAIR] },
+          'flag',
+        )
+        if (!ok) sentFlag = false
+      }
+      return
+    }
+
+    // c) fair yarisi: nextPremium = min(1000, (blockNumber+1-startBlock)*50) bps,
+    //    esigi gecen bot liquidate gonderir. A kazansa bile B ve C kendi esiklerinde
+    //    deneyip revert makbuzu alir (kanit icin hoban zaman zin kac blok sonra ozet + exit).
+    const nextPremium = win((blockNumber + 1n - startBlock) * STEP_BPS)
+    for (let i = 0; i < 3; i++) {
+      if (sentFair[i] || nextPremium < THRESHOLD_BPS[i]) continue
+      log(`esik asildi: bot=${BOT_NAMES[i]} nextPremium=${nextPremium}bps @block ${blockNumber}`)
+      sentFair[i] = true // in-flight guard
+      // B/C denemesi revert olacak; estimate hataya dusmesin diye sabit 200_000 gas.
+      const fixedGas = i === 0 ? undefined : 200_000n
+      const ok = await botSend(
+        i,
+        { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FAIR] },
+        `fair-liquidate(${nextPremium}bps)`,
+        fixedGas,
+      )
+      if (ok && i === 0) {
+        console.log('==================================================')
+        console.log(`KAZANAN: bot ${BOT_NAMES[i]} | prim=${nextPremium}bps | block=${blockNumber}`)
+        console.log('==================================================')
+        // B/C esiklerine kadar bekle (200/300 bps), sonra C denemesinden sonra ozet + exit.
+      }
+    }
+    // Ozet: A kazandigi (sentFair[0]) ve C'nin denemesi gorundugu anda yazdir.
+    if (sentFair[2] && !raceDone) {
       raceDone = true
-      console.log('==================================================')
-      console.log(`KAZANAN: bot ${BOT_NAMES[i]} | prim=${nextPremium}bps | block=${blockNumber}`)
-      console.log('==================================================')
+      await printSummary()
       process.exit(0)
     }
+  } finally {
+    busy = false
   }
+}
+
+async function printSummary() {
+  const winnerRec = raceTx.find((r) => r.status === 'success' && /fixed-liquidate|fair-liquidate/.test(r.label))
+  console.log('==================================================')
+  console.log('YARIS OZETI')
+  console.log(`startBlock: ${startBlock}`)
+  for (const r of raceTx) {
+    console.log(`  bot=${r.bot} ${r.label} premium=${r.premiumBps}bps block=${r.block} status=${r.status} tx=${r.tx}`)
+  }
+  if (winnerRec) console.log(`KAZANAN: bot ${winnerRec.bot}`)
+  console.log('==================================================')
+  await writeRaceFile({
+    finishedAt: new Date().toISOString(),
+    startBlock: startBlock?.toString(),
+    winner: winnerRec?.bot ?? null,
+    transactions: raceTx,
+  })
 }
 
 main().catch((err) => {
