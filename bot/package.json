@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "bot": "tsx run.ts",
-    "crash": "tsx crash.ts"
+    "crash": "tsx crash.ts",
+    "loop": "bash loop.sh"
   },
   "dependencies": {
     "viem": "^2.57.11"
