@@ -177,7 +177,11 @@ async function botSend(botIdx: number, call: BotCall, label: string, fixedGas?: 
       label,
       tx: r.transactionHash,
       status: r.status,
-      premiumBps: liquidated ? liquidated.premiumBps.toString() : call.functionName === 'liquidate' ? premiumLabel(label) : '-',
+      premiumBps: liquidated
+        ? liquidated.premiumBps.toString()
+        : label.startsWith('fair-') && startBlock !== null
+          ? win((r.blockNumber - startBlock) * STEP_BPS).toString() // girdigi bloktaki gercek prim
+          : call.functionName === 'liquidate' ? premiumLabel(label) : '-',
       block: r.blockNumber.toString(),
       ...(liquidated ? { liquidator: liquidated.liquidator, toBorrower: liquidated.toBorrower.toString() } : {}),
     })
