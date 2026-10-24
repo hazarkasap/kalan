@@ -66,6 +66,25 @@ event PriceSet(uint256 price); // AdminOracle
 
 Arayüz bütün rakamları bu olaylardan okur; ayrı veritabanı yok.
 
+### ABI ayrıntısı (sabit — değişiklik iki tarafın onayıyla)
+
+- Tokenlar (USDC, WETH) **18 ondalık**. Fiyat 1e18 ölçekli USD: 3.000 $ = `3000e18`. `setPrice(2300e18)`.
+- `mode`: 0 = NONE, 1 = FIXED, 2 = FAIR. `startBlock = 0` → flag'lenmemiş.
+- `premiumNow`, flag'lenmemiş FAIR pozisyon için 0; FIXED için 1000 döner.
+
+```solidity
+function price() external view returns (uint256);                       // AdminOracle
+function setPrice(uint256 p) external;                                  // AdminOracle, onlyAdmin
+function positions(address user) external view
+    returns (uint256 collateral, uint256 debt, uint8 mode, uint256 startBlock);
+function premiumNow(address user) external view returns (uint256 bps);
+function isLiquidatable(address user) external view returns (bool);
+function flag(address user) external;
+function liquidate(address user) external;
+function resetDemo() external;                                          // onlyAdmin
+function admin() external view returns (address);
+```
+
 ## Arayüz sözleşmesi (12:15'te sabit)
 
 `deployments.json` (`web/src/` altına kopyalanır, ABI'lerle birlikte):
@@ -109,7 +128,7 @@ forge verify-contract <adres> <Ad> --chain 10143 --verifier sourcify \
   --verifier-url https://sourcify-api-monad.blockvision.org
 ```
 
-Deploy sırası: 2× `MockERC20` → `AdminOracle(3000)` → `FairLend(oracle, usdc, weth)` →
+Deploy sırası: 2× `MockERC20` → `AdminOracle(3000)` → `FairLend(oracle, usdc, weth, borrowerFixed, borrowerFair)` → oracle yetkisi FairLend'e (resetDemo fiyatı çekebilsin) →
 protokole USDC likiditesi → botlara USDC → `resetDemo()` → `deployments.json`.
 
 ## Kapsam dışı
