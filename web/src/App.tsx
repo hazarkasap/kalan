@@ -12,7 +12,8 @@ function runLabel({ view, head, connection }: Snapshot): string {
   const range = `blocks ${view.crashBlock}–${view.endBlock}`
   if (view.phase === 'running') return `Live run · block ${head ?? view.endBlock}`
   if (view.phase === 'settled') return `Settled · ${range}`
-  return `Last run · ${range}`
+  // idle: resetDemo() came after this run, so positions are reopened and waiting for a crash
+  return `Reset done · ready — press Crash price · showing last run (${range})`
 }
 
 function Dashboard() {
