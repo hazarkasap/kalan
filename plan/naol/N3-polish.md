@@ -28,5 +28,5 @@ Polish App for a 1080p screen recording:
 
 - [ ] Admin buttons appear only for the admin wallet
 - [ ] A non-admin incognito visit shows the last run
-- [ ] Vercel production deploy updated; commit + push `web: polish + admin controls`
+- [ ] Commit + push `web: polish + admin controls` (Vercel auto-deploys)
 - [ ] 15:15 — code freeze, bug fixes only

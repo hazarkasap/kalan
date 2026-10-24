@@ -23,14 +23,13 @@ Style: plain CSS (no UI library), dark background, one accent colour, a monospac
 Keep components small: Header, CrashButton, Panel, BigNumber. No routing.
 ```
 
-## Then deploy (you do this, not the agent)
+## Deploy
 
-1. vercel.com → New Project → import `hazarkasap/kalan` → Root Directory: `web` → Framework: Vite.
-2. Env vars: `VITE_RPC_URL`, `VITE_WS_URL` only. Never a private key.
-3. Send the URL to Hazar.
+Hazar owns Vercel (project imported from `hazarkasap/kalan`, root `web`). Every push to `main` deploys
+automatically — just push. Need an env var changed? Ask Hazar.
 
 ## Done when
 
 - [ ] Clicking "Market crash" shows left panel $100, right panel premium ticking then $270
-- [ ] Vercel URL opens
+- [ ] Pushed; Vercel auto-deploy succeeded (URL from Hazar)
 - [ ] Commit + push: `web: demo layout on mock`

@@ -8,7 +8,7 @@ The only shared surface is the interface contract in `SPEC.md` (sections "ABI ay
 | File | Time | Tool | Output |
 | --- | --- | --- | --- |
 | [N0-setup.md](N0-setup.md) | 12:30–12:45 | Cursor | Vite app in `web/`, mock data layer |
-| [N1-skeleton.md](N1-skeleton.md) | 12:45–13:15 | Cursor | Two panels + button + counter on mock, Vercel URL |
+| [N1-skeleton.md](N1-skeleton.md) | 12:45–13:15 | Cursor | Two panels + button + counter on mock |
 | [N2-wire.md](N2-wire.md) | 13:15–14:00 | Codex + Cursor | Real addresses, event reading, explorer links; contract review |
 | [N3-polish.md](N3-polish.md) | 14:00–15:15 | Cursor | Big number, winner bot, admin buttons, live deploy |
 | [N4-ship.md](N4-ship.md) | 15:15–16:30 | ChatGPT + Cursor | README, video script, submission |
