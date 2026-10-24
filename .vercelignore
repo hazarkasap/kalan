@@ -1,0 +1,7 @@
+# Vercel'e yalnız web/ yüklenir
+/*
+!/web
+/web/node_modules
+/web/dist
+.env
+.env.*
