@@ -1,3 +1,17 @@
+.banner {
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+}
+
+.banner.error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--panel));
+  color: #f3c4b8;
+}
+
 .app {
   min-height: 100svh;
   max-width: 1760px;

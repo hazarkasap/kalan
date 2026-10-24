@@ -1,4 +1,4 @@
-import { txUrl } from '../chain.ts'
+import { addressUrl, txUrl } from '../chain.ts'
 import type { Side } from '../data.ts'
 import { BigNumber } from './BigNumber.tsx'
 
@@ -10,6 +10,8 @@ type PanelProps = {
   price: number
   accent?: boolean
   status: Status
+  waiting?: boolean
+  connecting?: boolean
 }
 
 function formatUsd(value: number) {
@@ -20,10 +22,16 @@ function premiumPct(bps: number) {
   return `${(bps / 100).toFixed(1)}%`
 }
 
-export function Panel({ title, side, price, accent = false, status }: PanelProps) {
-  const kept = side.liquidated
-    ? side.liquidated.toBorrowerEth * price
-    : null
+export function Panel({
+  title,
+  side,
+  price,
+  accent = false,
+  status,
+  waiting = false,
+  connecting = false,
+}: PanelProps) {
+  const kept = side.liquidated ? side.liquidated.toBorrowerEth * price : null
 
   return (
     <section className={accent ? 'panel accent-panel' : 'panel'}>
@@ -39,7 +47,13 @@ export function Panel({ title, side, price, accent = false, status }: PanelProps
         </div>
         <div>
           <dt>Status</dt>
-          <dd className={`status status-${status.toLowerCase()}`}>{status}</dd>
+          <dd className={`status status-${status.toLowerCase()}`}>
+            {connecting
+              ? 'Connecting…'
+              : waiting && !side.liquidated
+                ? 'Waiting for block…'
+                : status}
+          </dd>
         </div>
         <div>
           <dt>Premium</dt>
@@ -51,6 +65,10 @@ export function Panel({ title, side, price, accent = false, status }: PanelProps
         <div className="outcome">
           <p className="winner">
             Bot {side.liquidated.botName} won at {premiumPct(side.liquidated.premiumBps)}
+            {' · '}
+            <a href={addressUrl(side.liquidated.liquidator)} target="_blank" rel="noreferrer">
+              {side.liquidated.liquidator.slice(0, 6)}…{side.liquidated.liquidator.slice(-4)}
+            </a>
           </p>
           <BigNumber accent={accent}>{`Borrower keeps $${formatUsd(kept)}`}</BigNumber>
           <a className="tx" href={txUrl(side.liquidated.txHash)} target="_blank" rel="noreferrer">
@@ -59,7 +77,15 @@ export function Panel({ title, side, price, accent = false, status }: PanelProps
         </div>
       ) : (
         <div className="outcome pending">
-          <BigNumber>{status === 'Healthy' ? 'Position healthy' : 'Auction running'}</BigNumber>
+          <BigNumber>
+            {connecting
+              ? 'Connecting…'
+              : waiting
+                ? 'Waiting for block…'
+                : status === 'Healthy'
+                  ? 'Position healthy'
+                  : 'Auction running'}
+          </BigNumber>
         </div>
       )}
     </section>

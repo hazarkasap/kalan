@@ -1,8 +1,9 @@
 type HeaderProps = {
   price: number
+  connecting?: boolean
 }
 
-export function Header({ price }: HeaderProps) {
+export function Header({ price, connecting = false }: HeaderProps) {
   return (
     <header className="header">
       <div className="brand">
@@ -11,7 +12,9 @@ export function Header({ price }: HeaderProps) {
       </div>
       <p className="eth-price">
         <span className="eth-price-label">ETH</span>
-        <span className="eth-price-value">${price.toLocaleString('en-US')}</span>
+        <span className="eth-price-value">
+          {connecting || price === 0 ? '—' : `$${price.toLocaleString('en-US')}`}
+        </span>
       </p>
     </header>
   )

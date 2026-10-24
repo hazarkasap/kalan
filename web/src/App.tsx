@@ -7,36 +7,43 @@ import {
   FAIR_LIQ_BPS,
   STEP_BPS,
   triggerMockCrash,
+  USE_MOCK,
   useRun,
   type Side,
 } from './data.ts'
 import './App.css'
 
-function sideStatus(side: Side, price: number): Status {
+function sideStatus(side: Side, price: number, connecting: boolean): Status {
+  if (connecting) return 'Healthy'
   if (side.liquidated) return 'Liquidated'
-  if (price < 3000) return 'Liquidatable'
+  if (price > 0 && price < 3000) return 'Liquidatable'
   return 'Healthy'
 }
 
-function settleCopy(fair: Side) {
-  if (fair.liquidated && fair.flaggedAtBlock != null) {
+function settleCopy(fair: Side, connection: ReturnType<typeof useRun>['connection']) {
+  if (connection === 'connecting') return 'Connecting…'
+  if (fair.liquidated && fair.liquidated.blockNumber && fair.flaggedAtBlock != null) {
     const blocks = fair.liquidated.blockNumber - fair.flaggedAtBlock
     const seconds = (blocks * BLOCK_MS) / 1000
     return `Blocks to settle: ${blocks} · ~${seconds.toFixed(1)} s`
   }
+  if (fair.liquidated) {
+    return `Settled in block ${fair.liquidated.blockNumber}`
+  }
   if (fair.flaggedAtBlock != null) {
     const remaining = Math.max(0, Math.ceil((FAIR_LIQ_BPS - fair.premiumBps) / STEP_BPS))
     const seconds = (remaining * BLOCK_MS) / 1000
-    return `Blocks to settle: ${remaining} · ~${seconds.toFixed(1)} s`
+    return `Waiting for block… ${remaining} left · ~${seconds.toFixed(1)} s`
   }
   return 'Blocks to settle: — · waiting for crash'
 }
 
 function App() {
   const run = useRun()
+  const connecting = run.connection === 'connecting'
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return
+    if (!import.meta.env.DEV || !USE_MOCK) return
     const params = new URLSearchParams(window.location.search)
     if (params.has('settled')) triggerMockCrash({ immediate: true })
     else if (params.has('crash')) triggerMockCrash()
@@ -44,24 +51,36 @@ function App() {
 
   return (
     <div className="app">
-      <Header price={run.price} />
-      <CrashButton onCrash={triggerMockCrash} />
+      {run.connection === 'error' && run.error ? (
+        <div className="banner error" role="alert">
+          RPC failed: {run.error}
+        </div>
+      ) : null}
+      {connecting ? (
+        <div className="banner">Connecting…</div>
+      ) : null}
+      <Header price={run.price} connecting={connecting} />
+      {USE_MOCK ? <CrashButton onCrash={triggerMockCrash} /> : null}
       <div className="panels">
         <Panel
           title="Fixed bonus (10%)"
           side={run.fixed}
           price={run.price}
-          status={sideStatus(run.fixed, run.price)}
+          status={sideStatus(run.fixed, run.price, connecting)}
+          waiting={false}
+          connecting={connecting}
         />
         <Panel
           title="Kalan (fair auction)"
           side={run.fair}
           price={run.price}
-          status={sideStatus(run.fair, run.price)}
+          status={sideStatus(run.fair, run.price, connecting)}
           accent
+          waiting={!connecting && run.fair.flaggedAtBlock != null && !run.fair.liquidated}
+          connecting={connecting}
         />
       </div>
-      <footer className="settle">{settleCopy(run.fair)}</footer>
+      <footer className="settle">{settleCopy(run.fair, run.connection)}</footer>
     </div>
   )
 }
