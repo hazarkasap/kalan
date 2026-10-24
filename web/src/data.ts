@@ -33,11 +33,11 @@ const COLLATERAL_ETH = 1
 const DEBT_USD = 2000
 const PRICE_START = 3000
 const PRICE_CRASH = 2300
-const STEP_BPS = 50
+export const STEP_BPS = 50
 const CAP_BPS = 1000
 const FIXED_BPS = 1000
-const FAIR_LIQ_BPS = 150
-const BLOCK_MS = 400
+export const FAIR_LIQ_BPS = 150
+export const BLOCK_MS = 400
 const FLAG_BLOCK = 1_000_000
 
 const BOTS = mockDeployments.bots as [string, string, string]
@@ -120,17 +120,32 @@ export function useRun(): Run {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
-export function triggerMockCrash() {
+export function triggerMockCrash(opts?: { immediate?: boolean }) {
   if (tick) {
     clearInterval(tick)
     tick = null
   }
 
+  const crashedFixed = side(FIXED_BPS, {
+    liquidated: settle(FIXED_BPS, 'A', FLAG_BLOCK, TX_FIXED),
+  })
+
+  if (opts?.immediate) {
+    const blocks = FAIR_LIQ_BPS / STEP_BPS
+    emit({
+      price: PRICE_CRASH,
+      fixed: crashedFixed,
+      fair: side(FAIR_LIQ_BPS, {
+        flaggedAtBlock: FLAG_BLOCK,
+        liquidated: settle(FAIR_LIQ_BPS, 'A', FLAG_BLOCK + blocks, TX_FAIR),
+      }),
+    })
+    return
+  }
+
   emit({
     price: PRICE_CRASH,
-    fixed: side(FIXED_BPS, {
-      liquidated: settle(FIXED_BPS, 'A', FLAG_BLOCK, TX_FIXED),
-    }),
+    fixed: crashedFixed,
     fair: side(0, { flaggedAtBlock: FLAG_BLOCK }),
   })
 

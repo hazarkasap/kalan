@@ -1,56 +1,68 @@
-import { addressUrl, txUrl } from './chain.ts'
-import { triggerMockCrash, useRun } from './data.ts'
+import { useEffect } from 'react'
+import { CrashButton } from './components/CrashButton.tsx'
+import { Header } from './components/Header.tsx'
+import { Panel, type Status } from './components/Panel.tsx'
+import {
+  BLOCK_MS,
+  FAIR_LIQ_BPS,
+  STEP_BPS,
+  triggerMockCrash,
+  useRun,
+  type Side,
+} from './data.ts'
 import './App.css'
 
-function usdKept(eth: number, price: number) {
-  return (eth * price).toFixed(0)
+function sideStatus(side: Side, price: number): Status {
+  if (side.liquidated) return 'Liquidated'
+  if (price < 3000) return 'Liquidatable'
+  return 'Healthy'
+}
+
+function settleCopy(fair: Side) {
+  if (fair.liquidated && fair.flaggedAtBlock != null) {
+    const blocks = fair.liquidated.blockNumber - fair.flaggedAtBlock
+    const seconds = (blocks * BLOCK_MS) / 1000
+    return `Blocks to settle: ${blocks} · ~${seconds.toFixed(1)} s`
+  }
+  if (fair.flaggedAtBlock != null) {
+    const remaining = Math.max(0, Math.ceil((FAIR_LIQ_BPS - fair.premiumBps) / STEP_BPS))
+    const seconds = (remaining * BLOCK_MS) / 1000
+    return `Blocks to settle: ${remaining} · ~${seconds.toFixed(1)} s`
+  }
+  return 'Blocks to settle: — · waiting for crash'
 }
 
 function App() {
   const run = useRun()
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('settled')) triggerMockCrash({ immediate: true })
+    else if (params.has('crash')) triggerMockCrash()
+  }, [])
+
   return (
-    <main className="n0">
-      <h1>Kalan</h1>
-      <p className="sub">Liquidations that give back</p>
-      <p className="price">
-        ETH <span>{run.price.toLocaleString()}</span>
-      </p>
-      <button type="button" onClick={triggerMockCrash}>
-        Market crash
-      </button>
-      <div className="row">
-        <section>
-          <h2>Fixed bonus (10%)</h2>
-          <p>premium {run.fixed.premiumBps / 100}%</p>
-          {run.fixed.liquidated ? (
-            <p>
-              Borrower keeps ${usdKept(run.fixed.liquidated.toBorrowerEth, run.price)}{' '}
-              <a href={txUrl(run.fixed.liquidated.txHash)}>view tx</a>
-            </p>
-          ) : (
-            <p>healthy</p>
-          )}
-        </section>
-        <section>
-          <h2>Kalan (fair auction)</h2>
-          <p>premium {run.fair.premiumBps / 100}%</p>
-          {run.fair.flaggedAtBlock != null && !run.fair.liquidated ? (
-            <p>flagged @ {run.fair.flaggedAtBlock}</p>
-          ) : null}
-          {run.fair.liquidated ? (
-            <p>
-              Bot {run.fair.liquidated.botName} · Borrower keeps $
-              {usdKept(run.fair.liquidated.toBorrowerEth, run.price)}{' '}
-              <a href={addressUrl(run.fair.liquidated.liquidator)}>bot</a>{' '}
-              <a href={txUrl(run.fair.liquidated.txHash)}>view tx</a>
-            </p>
-          ) : (
-            <p>{run.price === 3000 ? 'healthy' : 'auction'}</p>
-          )}
-        </section>
+    <div className="app">
+      <Header price={run.price} />
+      <CrashButton onCrash={triggerMockCrash} />
+      <div className="panels">
+        <Panel
+          title="Fixed bonus (10%)"
+          side={run.fixed}
+          price={run.price}
+          status={sideStatus(run.fixed, run.price)}
+        />
+        <Panel
+          title="Kalan (fair auction)"
+          side={run.fair}
+          price={run.price}
+          status={sideStatus(run.fair, run.price)}
+          accent
+        />
       </div>
-    </main>
+      <footer className="settle">{settleCopy(run.fair)}</footer>
+    </div>
   )
 }
 
