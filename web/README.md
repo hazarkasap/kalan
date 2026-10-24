@@ -8,6 +8,8 @@ npm install
 npm run dev
 ```
 
-Set `VITE_FAIRLEND=1` to read the live deployment (`src/deployments.json`). Never put a private key here.
+Always reads the live deployment in `src/deployments.json` (no mock). The RPC must allow
+`debug_traceTransaction` for revert reasons in the bot log; without it losers show "reverted".
+Never put a private key here.
 
-Admin UI (connected wallet = `admin()` only): Market crash → `setPrice(2300e18)`; Reset demo → `resetDemo()`. Never `setPrice(3000e18)` from the browser.
+Admin UI (connected wallet = `admin()` only): Crash price (live) → `setPrice(2300e18)`; Reset demo → `resetDemo()`. Never `setPrice(3000e18)` from the browser.
