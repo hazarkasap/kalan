@@ -1,0 +1,213 @@
+{
+  "source": "Read-only RPC capture of web/src/lastRun.json, with decoded contract events, historical positions and receipt verification. Refresh: node scripts/capture-story.mjs",
+  "capturedAt": "2026-10-24T12:44:09.290Z",
+  "chainId": 10143,
+  "deployments": {
+    "borrowerFair": "0x70f943f9759dd1e6f8DC7cF94947b42C54215CE7",
+    "borrowerFixed": "0x6506b1af07564154e39E27dea72ec7b2CfCa8BC5",
+    "bots": [
+      "0x1E235c7D9cd0AdDD4F36d6bD9bc0394e9237DbCE",
+      "0x202c247e0ACeEA073a6E43e4Cd27c949F1375d07",
+      "0x33D9b3ec0Be9d6894529a8234Ed844d81ea0Afa1"
+    ],
+    "chainId": 10143,
+    "fairLend": "0xCd4E8f8bB1e5d96C444b28a6F6090a64E898aBE9",
+    "oracle": "0xf4831fee37FC5B0433E4C1F8B0370316658C607a",
+    "usdc": "0x8E37f27B65b0F278bA657f9390B47362A5FAc701",
+    "weth": "0xbB0C8A10f1A61ba7A0Aa02896A612935bfb9D542"
+  },
+  "run": {
+    "fromBlock": "73816609",
+    "toBlock": "73816630",
+    "blockMs": 310,
+    "winner": "A",
+    "premiumBps": "150",
+    "toBorrowerUsd": "270",
+    "transactions": [
+      {
+        "bot": "A",
+        "label": "fixed-liquidate",
+        "tx": "0x43d84f2ea2f19506ebd7f3d323beb5a5f7034f00cfe7dcd9d73335ce3177a83a",
+        "status": "success",
+        "block": "73816619"
+      },
+      {
+        "bot": "A",
+        "label": "flag",
+        "tx": "0x6204bf818328e3d5bb839ccb123cc8e1c90c8a18866345000755b8e41c58f63e",
+        "status": "success",
+        "block": "73816622"
+      },
+      {
+        "bot": "A",
+        "label": "fair-liquidate(150bps)",
+        "tx": "0x1ab24d5c762e571ad5a64bb2f744024b22d53e8a092118a5388de48b43e34112",
+        "status": "success",
+        "block": "73816625"
+      },
+      {
+        "bot": "B",
+        "label": "fair-liquidate(300bps)",
+        "tx": "0x6d9c9391913cffb15a90edc73f0e14eb47b178f1d9d2a260dda03ef90c4f3a91",
+        "status": "reverted",
+        "block": "73816628"
+      },
+      {
+        "bot": "C",
+        "label": "fair-liquidate(300bps)",
+        "tx": "0xa43472b045ee8511ac028e9106559e614e2a5c761700919384406324843296ec",
+        "status": "reverted",
+        "block": "73816630"
+      }
+    ]
+  },
+  "positions": {
+    "atBlock": "73816568",
+    "fixed": [
+      "1000000000000000000",
+      "2000000000000000000000",
+      1,
+      "0"
+    ],
+    "fair": [
+      "1000000000000000000",
+      "2000000000000000000000",
+      2,
+      "0"
+    ]
+  },
+  "stepBps": "50",
+  "thresholdPct": "85",
+  "events": [
+    {
+      "event": "PriceSet",
+      "args": {
+        "price": "3000000000000000000000"
+      },
+      "block": "73816568",
+      "tx": "0x937867a3b5b179992e08af6f4c92024d070a9d570c3667cb1d6530ce0a28100c",
+      "address": "0xf4831fee37fc5b0433e4c1f8b0370316658c607a"
+    },
+    {
+      "event": "PriceSet",
+      "args": {
+        "price": "2300000000000000000000"
+      },
+      "block": "73816616",
+      "tx": "0x3987e17386dab8fb777c14c198b096bf821a51db0999de65153f34daf9839284",
+      "address": "0xf4831fee37fc5b0433e4c1f8b0370316658c607a"
+    },
+    {
+      "event": "Liquidated",
+      "args": {
+        "user": "0x6506b1af07564154e39E27dea72ec7b2CfCa8BC5",
+        "liquidator": "0x1E235c7D9cd0AdDD4F36d6bD9bc0394e9237DbCE",
+        "premiumBps": "1000",
+        "toLiquidator": "956521739130434782",
+        "toBorrower": "43478260869565218",
+        "blockNumber": "73816619"
+      },
+      "block": "73816619",
+      "tx": "0x43d84f2ea2f19506ebd7f3d323beb5a5f7034f00cfe7dcd9d73335ce3177a83a",
+      "address": "0xcd4e8f8bb1e5d96c444b28a6f6090a64e898abe9"
+    },
+    {
+      "event": "Flagged",
+      "args": {
+        "user": "0x70f943f9759dd1e6f8DC7cF94947b42C54215CE7",
+        "startBlock": "73816622"
+      },
+      "block": "73816622",
+      "tx": "0x6204bf818328e3d5bb839ccb123cc8e1c90c8a18866345000755b8e41c58f63e",
+      "address": "0xcd4e8f8bb1e5d96c444b28a6f6090a64e898abe9"
+    },
+    {
+      "event": "Liquidated",
+      "args": {
+        "user": "0x70f943f9759dd1e6f8DC7cF94947b42C54215CE7",
+        "liquidator": "0x1E235c7D9cd0AdDD4F36d6bD9bc0394e9237DbCE",
+        "premiumBps": "150",
+        "toLiquidator": "882608695652173913",
+        "toBorrower": "117391304347826087",
+        "blockNumber": "73816625"
+      },
+      "block": "73816625",
+      "tx": "0x1ab24d5c762e571ad5a64bb2f744024b22d53e8a092118a5388de48b43e34112",
+      "address": "0xcd4e8f8bb1e5d96c444b28a6f6090a64e898abe9"
+    }
+  ],
+  "blocks": [
+    {
+      "number": "73816622",
+      "timestamp": "1792845782",
+      "hash": "0x3781ca40bcba57fc6820ae983f512052a011be6f00d5283529916c117050e6c4"
+    },
+    {
+      "number": "73816623",
+      "timestamp": "1792845782",
+      "hash": "0x986bdca2128717f89a52c36a90253e2537c06b9c63338130a806e11cdaab25b3"
+    },
+    {
+      "number": "73816624",
+      "timestamp": "1792845783",
+      "hash": "0x04a9ff5a97b0d4ba5f76767b3be8fd837b9db61e3e52195775881dc5360a9b2e"
+    },
+    {
+      "number": "73816625",
+      "timestamp": "1792845783",
+      "hash": "0xdfc14500b79e9ca4dff883c924617b4f01ba7f0800570a70a0fe87ee0c6d00b4"
+    },
+    {
+      "number": "73816626",
+      "timestamp": "1792845783",
+      "hash": "0x5d593ff185c54e4ea6dc36abc14ff6f8559945a6ab63c1fd5ff031297ca49004"
+    },
+    {
+      "number": "73816627",
+      "timestamp": "1792845784",
+      "hash": "0x9eb3d0d175cfed4bc333c8aa34216d128123490f0bd2fdd1f85bd0da215628ac"
+    },
+    {
+      "number": "73816628",
+      "timestamp": "1792845784",
+      "hash": "0x89ea80c2e7f5a20b96b2afc1dec6ac109e42725f028298a219072f007f5cc65e"
+    },
+    {
+      "number": "73816629",
+      "timestamp": "1792845784",
+      "hash": "0xc5e7a73bcf5e2319114eb82b2567b6aabb4334f0638ba12c18771c9cbc195798"
+    },
+    {
+      "number": "73816630",
+      "timestamp": "1792845785",
+      "hash": "0x7723bc19560d9b81e538b9e85f0a33c7a9270faf83d3bf58c160bd1df90207d6"
+    }
+  ],
+  "receipts": [
+    {
+      "hash": "0x43d84f2ea2f19506ebd7f3d323beb5a5f7034f00cfe7dcd9d73335ce3177a83a",
+      "block": "73816619",
+      "status": "success"
+    },
+    {
+      "hash": "0x6204bf818328e3d5bb839ccb123cc8e1c90c8a18866345000755b8e41c58f63e",
+      "block": "73816622",
+      "status": "success"
+    },
+    {
+      "hash": "0x1ab24d5c762e571ad5a64bb2f744024b22d53e8a092118a5388de48b43e34112",
+      "block": "73816625",
+      "status": "success"
+    },
+    {
+      "hash": "0x6d9c9391913cffb15a90edc73f0e14eb47b178f1d9d2a260dda03ef90c4f3a91",
+      "block": "73816628",
+      "status": "reverted"
+    },
+    {
+      "hash": "0xa43472b045ee8511ac028e9106559e614e2a5c761700919384406324843296ec",
+      "block": "73816630",
+      "status": "reverted"
+    }
+  ]
+}

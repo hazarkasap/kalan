@@ -17,6 +17,7 @@ export function Header({ view, oraclePrice }: HeaderProps) {
       <div className="brand">
         <h1>Kalan</h1>
         <p className="subtitle">Liquidations that give back</p>
+        <a className="story-dashboard-link" href="/story">Play the 90-second story →</a>
       </div>
       <div className="header-right">
         <div className="eth">

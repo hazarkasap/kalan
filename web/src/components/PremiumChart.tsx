@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { premiumStepPath } from './premiumGeometry.ts'
 import { pct } from '../format.ts'
 import { BOT_NAMES, FIXED_BPS, premiumAt, type RunView } from '../run.ts'
 
@@ -37,16 +38,11 @@ export function PremiumChart({ view, head }: PremiumChartProps) {
   const x = (blocks: number) => pad.left + (blocks / span) * iw
   const y = (bps: number) => pad.top + ih - (bps / Y_MAX_BPS) * ih
 
-  // Kalan: 0 until the flag, then +50 bps per block (steps), drawn up to the last known block.
-  let kalan = ''
-  if (view) {
-    for (let b = crash; b <= end; b++) {
-      const px = x(b - crash)
-      const py = y(premiumAt(view.flagBlock, b))
-      kalan += b === crash ? `M${px},${py}` : `H${px}V${py}`
-    }
-    kalan += `H${x(end - crash + 1)}`
-  }
+  // The auction starts at flag and ends at the winning liquidation.
+  const auctionEnd = Math.min(end, view?.fair.liq?.block ?? end)
+  const kalan = view?.flagBlock != null
+    ? premiumStepPath(view.flagBlock, auctionEnd, b => x(b - crash), b => y(premiumAt(view.flagBlock, b)))
+    : ''
 
   const liquidations = view?.attempts.filter((a) => a.fn === 'liquidate' && a.premiumBps != null) ?? []
   const yTicks = [0, 250, 500, 750, 1000]
@@ -100,8 +96,8 @@ export function PremiumChart({ view, head }: PremiumChartProps) {
                 <path key={view.crashBlock} className={`kalan-line${view.phase === 'running' ? '' : ' draw'}`} d={kalan} />
                 <text
                   className="series kalan-label"
-                  x={x(end - crash + 1) + 8}
-                  y={y(premiumAt(view.flagBlock, end))}
+                  x={x(auctionEnd - crash) + 8}
+                  y={y(premiumAt(view.flagBlock, auctionEnd))}
                   dominantBaseline="middle"
                 >
                   Kalan

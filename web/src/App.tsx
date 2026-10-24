@@ -1,3 +1,4 @@
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { BotLog } from './components/BotLog.tsx'
 import { Header } from './components/Header.tsx'
 import { Hero } from './components/Hero.tsx'
@@ -14,7 +15,7 @@ function runLabel({ view, head, connection }: Snapshot): string {
   return `Last run · ${range}`
 }
 
-function App() {
+function Dashboard() {
   const run = useRun()
   const { view } = run
 
@@ -39,6 +40,30 @@ function App() {
       <MonadStrip view={view} />
     </div>
   )
+}
+
+const Story = lazy(() => import('./story/Story.tsx'))
+
+function App() {
+  const [story, setStory] = useState(() => location.pathname.replace(/\/$/, '') === '/story')
+  const [leaving, setLeaving] = useState(false)
+  const recording = new URLSearchParams(location.search).get('record') === '1'
+  const exit = useCallback(() => setLeaving(true), [])
+  useEffect(() => {
+    const pop = () => { setLeaving(false); setStory(location.pathname.replace(/\/$/, '') === '/story') }
+    window.addEventListener('popstate', pop)
+    return () => window.removeEventListener('popstate', pop)
+  }, [])
+  useEffect(() => {
+    if (!leaving) return
+    history.pushState({}, '', recording ? '/?record=1' : '/')
+    const timer = setTimeout(() => { setStory(false); setLeaving(false) }, 500)
+    return () => clearTimeout(timer)
+  }, [leaving, recording])
+  return <>
+    {(!story || leaving) && <div className={`route-stage ${recording ? 'recording-dashboard' : ''}`}><Dashboard /></div>}
+    {story && <div className={leaving ? 'story-exit-overlay' : ''}><Suspense fallback={<p className="app">Loading story…</p>}><Story onExit={exit} /></Suspense></div>}
+  </>
 }
 
 export default App
