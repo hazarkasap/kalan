@@ -1,0 +1,56 @@
+.n0 {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  color: #e8e6e3;
+  font-family: system-ui, sans-serif;
+}
+
+.n0 h1 {
+  margin: 0;
+  font-size: 2.4rem;
+}
+
+.n0 .sub {
+  margin: 4px 0 20px;
+  color: #9a958c;
+}
+
+.n0 .price span {
+  font-family: ui-monospace, monospace;
+  font-size: 2rem;
+}
+
+.n0 button {
+  background: #e8a54b;
+  color: #14120f;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.n0 .row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.n0 section {
+  background: #1c1a17;
+  border: 1px solid #2c2924;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.n0 a {
+  color: #e8a54b;
+}
+
+@media (max-width: 640px) {
+  .n0 .row {
+    grid-template-columns: 1fr;
+  }
+}
