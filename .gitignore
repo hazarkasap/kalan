@@ -1,0 +1,20 @@
+# Local agent state / workspace (GitHub'a gitmez)
+/.agent-state/
+/.jcode/
+/docs/
+CLAUDE.local.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node / web
+node_modules/
+dist/
+.vercel/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
