@@ -1,6 +1,6 @@
 {
-  "fromBlock": "73802690",
-  "toBlock": "73802709",
+  "fromBlock": "73807419",
+  "toBlock": "73807438",
   "blockMs": 310,
   "winner": "A",
   "premiumBps": "150",
@@ -9,37 +9,37 @@
     {
       "bot": "A",
       "label": "fixed-liquidate",
-      "tx": "0x76153654230c06baf14d08609f80e2033195fa703f173eb785038b7da392738c",
+      "tx": "0x6bff591a354544bbab1685e8b85814ed387e53984fe74bb6fd370f7b3ebbb2f5",
       "status": "success",
-      "block": "73802700"
+      "block": "73807429"
     },
     {
       "bot": "A",
       "label": "flag",
-      "tx": "0x608c6e91b4f8ec1adc6e335a7c910dd893efa74591aa47d1b3a239abe8a337ec",
+      "tx": "0xaf0d2fb3ed48c3f0eb055af2d01e47ceefd3a4264915718f9e2cce2083531e6c",
       "status": "success",
-      "block": "73802702"
+      "block": "73807431"
     },
     {
       "bot": "A",
       "label": "fair-liquidate(150bps)",
-      "tx": "0x6b335912298424a537b568bfb7611e9baf2ae1c9e70465e3edb6dbc31a7bb5da",
+      "tx": "0xf103dd7cc7782eb9b442170af54d5210937ec1752be35ddea28f5bd86ece40d1",
       "status": "success",
-      "block": "73802705"
+      "block": "73807434"
     },
     {
       "bot": "B",
       "label": "fair-liquidate(300bps)",
-      "tx": "0x04579ac291dff37706194482b888483db9efebae5b983b4dcd0e600cb3962a75",
+      "tx": "0x67c888ab612a019d748fb399daf9be862877d432f14c09c8b2947dd512f5918e",
       "status": "reverted",
-      "block": "73802708"
+      "block": "73807437"
     },
     {
       "bot": "C",
       "label": "fair-liquidate(300bps)",
-      "tx": "0x4f30fdb03b8257c3002a9e90326d4099ab2ee6e91624048908e5d3c578ae0985",
+      "tx": "0xe680dfdda19331f4a93ffddf8ce0f203de307046e3d0d6826dc7edb3cd47b79d",
       "status": "reverted",
-      "block": "73802709"
+      "block": "73807438"
     }
   ]
 }

@@ -252,6 +252,11 @@ async function main() {
   // 1) USDC bakiye + approve: baslangicta her bot icin bir kez.
   //    Her liquidate 2000 USDC harcar; MockERC20.mint herkese acik, bot kendine basar.
   for (let i = 0; i < 3; i++) {
+    // Monad gas limitinden ucret alir: RACE_GAS * maxFee (~0.04 MON) yoksa RPC tx'i reddeder.
+    const mon = await publicClient.getBalance({ address: botAccounts[i].address })
+    if (mon < 2n * 10n ** 17n) {
+      log(`UYARI bot=${BOT_NAMES[i]} MON bakiyesi dusuk (${Number(mon) / 1e18}); admin'den MON gonder`)
+    }
     const balance = (await publicClient.readContract({
       address: USDC,
       abi: erc20Abi,

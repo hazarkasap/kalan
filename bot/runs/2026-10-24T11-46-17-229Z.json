@@ -1,0 +1,53 @@
+{
+  "finishedAt": "2026-10-24T11:46:17.229Z",
+  "startBlock": "73805470",
+  "winner": "A",
+  "premiumBps": "100",
+  "toBorrowerUsd": "280",
+  "transactions": [
+    {
+      "bot": "A",
+      "label": "fixed-liquidate",
+      "tx": "0x1cc9a9ce6c5f9ec2bfebbb60eaa56090ddbe3070f0d83b81a869ba0befa85f72",
+      "status": "success",
+      "premiumBps": "1000",
+      "block": "73805468",
+      "liquidator": "0x1E235c7D9cd0AdDD4F36d6bD9bc0394e9237DbCE",
+      "toBorrower": "43478260869565218"
+    },
+    {
+      "bot": "A",
+      "label": "flag",
+      "tx": "0x1260f6745343d618439129c96cb1196f6088a8e8e9b03e270da502d1cc976fc3",
+      "status": "success",
+      "premiumBps": "-",
+      "block": "73805470"
+    },
+    {
+      "bot": "A",
+      "label": "fair-liquidate(150bps)",
+      "tx": "0xa55ac77daef8b826b34518a1fdcf95fc1901fb9fe8e2770cd2d02da981c53412",
+      "status": "success",
+      "premiumBps": "100",
+      "block": "73805472",
+      "liquidator": "0x1E235c7D9cd0AdDD4F36d6bD9bc0394e9237DbCE",
+      "toBorrower": "121739130434782609"
+    },
+    {
+      "bot": "B",
+      "label": "fair-liquidate(250bps)",
+      "tx": "0xe0364dbd140b294fba530a1a9fbae57f93bdb5087ebee76ab638cde5475bc462",
+      "status": "reverted",
+      "premiumBps": "250",
+      "block": "73805474"
+    },
+    {
+      "bot": "C",
+      "label": "fair-liquidate(350bps)",
+      "tx": "0x2c92a66fbc6c6353272ac70bbce7bcf408ce8ddfc3f669da45c1b5203aa7b2cb",
+      "status": "reverted",
+      "premiumBps": "350",
+      "block": "73805476"
+    }
+  ]
+}
