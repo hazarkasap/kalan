@@ -88,7 +88,9 @@ const STEP_BPS = 50n
 const MAX_BPS = 1000n
 const THRESHOLD_BPS = [150n, 200n, 300n] // A=150, B=200, C=300
 const BOT_NAMES = ['A', 'B', 'C']
-
+const RACE_GAS = 200_000n // yariz islemleri icin sabit gas (estimate async state'de patlar)
+const LATENCY = BigInt(process.env.BOT_LATENCY_BLOCKS ?? '2') // N. blokta gonderilen tx N+2'de girer (olculen)
+// fixed-lover prim sabit 1000bps (FAIR degil FIXED mod)
 const win = (n: bigint): bigint => (n > MAX_BPS ? MAX_BPS : n)
 
 function log(msg: string) {
@@ -102,7 +104,12 @@ type BotCall = {
   args: readonly unknown[]
 }
 
-type SyncReceipt = { transactionHash: `0x${string}`; status: 'success' | 'reverted'; blockNumber: bigint }
+type SyncReceipt = {
+  transactionHash: `0x${string}`
+  status: 'success' | 'reverted'
+  blockNumber: bigint
+  logs: ReadonlyArray<{ address: string; topics: string[]; data: string }>
+}
 
 // Tek cagida gonder + makbuz (writeContractSync -> eth_sendRawTransactionSync;
 // Monad iki RPC de destekliyor). Desteklenmezse execute + waitForTransactionReceipt.
@@ -139,7 +146,7 @@ async function sendSync(botIdx: number, call: BotCall, fixedGas?: bigint): Promi
     if (!/sync|sendRawTransactionSync|not found|-32601|unsupported/i.test(msg)) throw err
     const hash = await client.writeContract({ ...callWithGas, account } as never)
     const receipt = await waitForTransactionReceipt(publicClient, { hash } as never)
-    return { transactionHash: hash, status: receipt.status, blockNumber: receipt.blockNumber }
+    return { transactionHash: hash, status: receipt.status, blockNumber: receipt.blockNumber, logs: receipt.logs as never }
   }
 }
 
@@ -147,19 +154,38 @@ async function botSend(botIdx: number, call: BotCall, label: string, fixedGas?: 
   const name = BOT_NAMES[botIdx]
   try {
     const r = await sendSync(botIdx, call, fixedGas)
+    // Liquidated olayini makbuzdan decode et (winner bulgusu icin dogru kaynak).
+    let liquidated: { liquidator: string; premiumBps: bigint; toBorrower: bigint } | null = null
+    if (r.status === 'success') {
+      for (const l of r.logs) {
+        if (l.address.toLowerCase() !== FAIRLEND.toLowerCase()) continue
+        try {
+          const ev = decodeEventLog({ abi: fairLendAbi, data: l.data as `0x${string}`, topics: l.topics as unknown as [`0x${string}`, ...`0x${string}`[]] }) as {
+            eventName: string
+            args: { liquidator?: string; premiumBps?: bigint; toBorrower?: bigint; user?: string }
+          }
+          if (ev.eventName === 'Liquidated' && ev.args.liquidator) {
+            liquidated = { liquidator: ev.args.liquidator, premiumBps: ev.args.premiumBps ?? 0n, toBorrower: ev.args.toBorrower ?? 0n }
+          }
+        } catch {
+          /* farkli olay, atla */
+        }
+      }
+    }
     raceTx.push({
       bot: name,
       label,
       tx: r.transactionHash,
       status: r.status,
-      premiumBps: call.functionName === 'liquidate' ? premiumLabel(label) : '-',
+      premiumBps: liquidated ? liquidated.premiumBps.toString() : call.functionName === 'liquidate' ? premiumLabel(label) : '-',
       block: r.blockNumber.toString(),
+      ...(liquidated ? { liquidator: liquidated.liquidator, toBorrower: liquidated.toBorrower.toString() } : {}),
     })
     if (r.status === 'reverted') {
       log(`${label} bot=${name} tx=${r.transactionHash} status=reverted  (bot ${name} reverted)`)
       return false
     }
-    log(`${label} bot=${name} tx=${r.transactionHash} status=success`)
+    log(`${label} bot=${name} tx=${r.transactionHash} status=success${liquidated ? ` liquidator=${liquidated.liquidator} prem=${liquidated.premiumBps}bps toBorrower=${liquidated.toBorrower}` : ''}`)
     return true
   } catch (err) {
     log(`${label} bot=${name} HATA: ${shortErr(err)}`)
@@ -174,8 +200,7 @@ function premiumLabel(label: string): string {
 
 function shortErr(err: unknown): string {
   const s = String(err)
-  const m = s.match(/reverted[^\n]*/i)
-  return (m ? m[0] : s).slice(0, 160)
+  return s.slice(0, 300)
 }
 
 // --- durum ---
@@ -205,8 +230,22 @@ async function writeRaceFile(summary: Record<string, unknown>) {
 async function main() {
   log(`kalan-bot start fairLend=${FAIRLEND} fixed=${BORROWER_FIXED} fair=${BORROWER_FAIR}`)
 
-  // 1) USDC approve: baslangicta her bot icin bir kez
+  // 1) USDC bakiye + approve: baslangicta her bot icin bir kez.
+  //    Her liquidate 2000 USDC harcar; MockERC20.mint herkese acik, bot kendine basar.
   for (let i = 0; i < 3; i++) {
+    const balance = (await publicClient.readContract({
+      address: USDC,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [botAccounts[i].address],
+    })) as bigint
+    if (balance < 10000n * 10n ** 18n) {
+      await botSend(
+        i,
+        { address: USDC, abi: erc20Abi, functionName: 'mint', args: [botAccounts[i].address, 100000n * 10n ** 18n] },
+        'mint',
+      )
+    }
     const allowance = (await publicClient.readContract({
       address: USDC,
       abi: erc20Abi,
@@ -294,6 +333,7 @@ async function onBlock(blockNumber: bigint) {
         0,
         { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FIXED] },
         'fixed-liquidate',
+        RACE_GAS,
       )
       if (!ok) sentFixed = false
     }
@@ -317,27 +357,26 @@ async function onBlock(blockNumber: bigint) {
           0,
           { address: FAIRLEND, abi: fairLendAbi, functionName: 'flag', args: [BORROWER_FAIR] },
           'flag',
+          RACE_GAS,
         )
         if (!ok) sentFlag = false
       }
       return
     }
 
-    // c) fair yarisi: nextPremium = min(1000, (blockNumber+1-startBlock)*50) bps,
-    //    esigi gecen bot liquidate gonderir. A kazansa bile B ve C kendi esiklerinde
-    //    deneyip revert makbuzu alir (kanit icin hoban zaman zin kac blok sonra ozet + exit).
-    const nextPremium = win((blockNumber + 1n - startBlock) * STEP_BPS)
+    // c) fair yarisi: N. blokta gonderilen tx N+LATENCY'de girer.
+    //    premiumAt(b) = min(1000, (b - startBlock) * 50)
+    const nextPremium = win((blockNumber + LATENCY - startBlock) * STEP_BPS)
     for (let i = 0; i < 3; i++) {
       if (sentFair[i] || nextPremium < THRESHOLD_BPS[i]) continue
       log(`esik asildi: bot=${BOT_NAMES[i]} nextPremium=${nextPremium}bps @block ${blockNumber}`)
       sentFair[i] = true // in-flight guard
-      // B/C denemesi revert olacak; estimate hataya dusmesin diye sabit 200_000 gas.
-      const fixedGas = i === 0 ? undefined : 200_000n
+      // TUM yariz islemleri sabit gas: estimate async state'de state flag'i gormez, NotFlagged patlar.
       const ok = await botSend(
         i,
         { address: FAIRLEND, abi: fairLendAbi, functionName: 'liquidate', args: [BORROWER_FAIR] },
         `fair-liquidate(${nextPremium}bps)`,
-        fixedGas,
+        RACE_GAS,
       )
       if (ok && i === 0) {
         console.log('==================================================')
@@ -358,19 +397,36 @@ async function onBlock(blockNumber: bigint) {
 }
 
 async function printSummary() {
-  const winnerRec = raceTx.find((r) => r.status === 'success' && /fixed-liquidate|fair-liquidate/.test(r.label))
+  // Winner: makbuzdaki Liquidated olayindan (liquidator adresi -> bot adi).
+  const liqRec = raceTx.find(
+    (r) => r.status === 'success' && r.label.startsWith('fair-liquidate') && (r as RaceRecord & { liquidator?: string }).liquidator,
+  )
+  const winnerBot = liqRec
+    ? BOT_NAMES.find((_n, i) => botAccounts[i].address.toLowerCase() === (liqRec as RaceRecord & { liquidator: string }).liquidator.toLowerCase())
+    : null
+  // Fair liquidate ise borcluya.giden: toBorrower wei * 2300 USD / 1e18
+  const PRICE = 2300n
+  const toBorrowerUsd = liqRec && (liqRec as RaceRecord & { toBorrower?: string }).toBorrower
+    ? ((BigInt((liqRec as RaceRecord & { toBorrower: string }).toBorrower) * PRICE) / 10n ** 18n).toString()
+    : null
   console.log('==================================================')
   console.log('YARIS OZETI')
   console.log(`startBlock: ${startBlock}`)
   for (const r of raceTx) {
     console.log(`  bot=${r.bot} ${r.label} premium=${r.premiumBps}bps block=${r.block} status=${r.status} tx=${r.tx}`)
   }
-  if (winnerRec) console.log(`KAZANAN: bot ${winnerRec.bot}`)
+  if (winnerBot) {
+    console.log(`KAZANAN: bot ${winnerBot} | premium=${liqRec!.premiumBps}bps | borcluya=${toBorrowerUsd} USD | block=${liqRec!.block}`)
+  } else {
+    console.log('KAZANAN: bulunamadi (fixed liquidate ise status=success olan fixed-liquidate)...')
+  }
   console.log('==================================================')
   await writeRaceFile({
     finishedAt: new Date().toISOString(),
     startBlock: startBlock?.toString(),
-    winner: winnerRec?.bot ?? null,
+    winner: winnerBot ?? null,
+    premiumBps: liqRec?.premiumBps ?? null,
+    toBorrowerUsd,
     transactions: raceTx,
   })
 }
