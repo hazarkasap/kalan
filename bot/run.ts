@@ -227,6 +227,25 @@ async function writeRaceFile(summary: Record<string, unknown>) {
   }
 }
 
+// Arayuz icin ipucu: son basarili kosunun blok araligi (<100 blok -> tek getLogs).
+// Sayfa 8000 blokluk geri taramanin otesindeki son kosuyu da bulabilsin.
+function writeLastRun(records: RaceRecord[], winner: string, premiumBps: string, toBorrowerUsd: string | null) {
+  const blocks = records.map((r) => BigInt(r.block))
+  const min = blocks.reduce((a, b) => (b < a ? b : a))
+  const max = blocks.reduce((a, b) => (b > a ? b : a))
+  const lastRun = {
+    fromBlock: (min - 10n).toString(), // crash PriceSet fixed-liquidate'ten birkac blok once
+    toBlock: max.toString(),
+    blockMs: 310, // olculen: 1000 blok zaman damgasi 305 ms, newHeads 324 ms
+    winner,
+    premiumBps,
+    toBorrowerUsd,
+    transactions: records.map(({ bot, label, tx, status, block }) => ({ bot, label, tx, status, block })),
+  }
+  writeFileSync(resolve(root, 'web/src/lastRun.json'), JSON.stringify(lastRun, null, 2) + '\n')
+  log('web/src/lastRun.json yazildi')
+}
+
 async function main() {
   log(`kalan-bot start fairLend=${FAIRLEND} fixed=${BORROWER_FIXED} fair=${BORROWER_FAIR}`)
 
@@ -429,6 +448,7 @@ async function printSummary() {
     toBorrowerUsd,
     transactions: raceTx,
   })
+  if (winnerBot && liqRec) writeLastRun(raceTx, winnerBot, liqRec.premiumBps, toBorrowerUsd)
 }
 
 main().catch((err) => {
