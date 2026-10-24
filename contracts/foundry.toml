@@ -11,3 +11,5 @@ use_literal_content = true # use source code
 chain_id = 10143
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+fs_permissions = [{ access = "write", path = "../web/src" }]
