@@ -49,7 +49,8 @@ export const BLOCK_MS = 400
 const FLAG_BLOCK = 1_000_000
 const LOG_CHUNK = 100n
 const MAX_LOG_CHUNKS = 80
-const RESET_PRICE = 3000n * 10n ** 18n
+export const RESET_PRICE = 3000n * 10n ** 18n
+export const CRASH_PRICE = 2300n * 10n ** 18n
 
 const MOCK_BOTS = mockDeployments.bots as [string, string, string]
 const TX_FIXED =
@@ -379,7 +380,7 @@ async function collectRunEvents(
 
     const wantLiq = (needLiqFixed && !liqFixed) || (needLiqFair && !liqFair)
     const wantFlag = needFlag && !flagFair
-    const [liqs, flags] = await Promise.all([
+    const [liqs, flags, prices] = await Promise.all([
       wantLiq
         ? client.getContractEvents({
             address: liveAddr.fairLend,
@@ -398,25 +399,57 @@ async function collectRunEvents(
             toBlock,
           })
         : Promise.resolve([]),
+      client.getContractEvents({
+        address: liveAddr.oracle,
+        abi,
+        eventName: 'PriceSet',
+        fromBlock,
+        toBlock,
+      }),
     ])
 
-    for (const log of [...liqs].reverse()) {
-      const row = asLiq(log)
-      if (!row) continue
-      if (!liqFixed && row.user.toLowerCase() === liveAddr.borrowerFixed.toLowerCase()) {
-        liqFixed = row
-      }
-      if (!liqFair && row.user.toLowerCase() === liveAddr.borrowerFair.toLowerCase()) {
-        liqFair = row
+    type Row =
+      | { kind: 'liq'; block: bigint; log: (typeof liqs)[number] }
+      | { kind: 'flag'; block: bigint; log: (typeof flags)[number] }
+      | { kind: 'price'; block: bigint; price: bigint }
+
+    const rows: Row[] = []
+    for (const log of liqs) {
+      if (log.blockNumber != null) rows.push({ kind: 'liq', block: log.blockNumber, log })
+    }
+    for (const log of flags) {
+      if (log.blockNumber != null) rows.push({ kind: 'flag', block: log.blockNumber, log })
+    }
+    for (const log of prices) {
+      if (log.blockNumber != null && log.args.price != null) {
+        rows.push({ kind: 'price', block: log.blockNumber, price: log.args.price })
       }
     }
-    for (const log of [...flags].reverse()) {
-      if (flagFair) break
-      if (log.args.user?.toLowerCase() === liveAddr.borrowerFair.toLowerCase()) {
-        flagFair = log.args.startBlock ?? log.blockNumber ?? undefined
+    rows.sort((a, b) => (a.block < b.block ? 1 : a.block > b.block ? -1 : 0))
+
+    let hitReset = false
+    for (const row of rows) {
+      if (row.kind === 'price' && row.price === RESET_PRICE) {
+        hitReset = true
+        break
+      }
+      if (row.kind === 'liq') {
+        const item = asLiq(row.log)
+        if (!item) continue
+        if (!liqFixed && item.user.toLowerCase() === liveAddr.borrowerFixed.toLowerCase()) {
+          liqFixed = item
+        }
+        if (!liqFair && item.user.toLowerCase() === liveAddr.borrowerFair.toLowerCase()) {
+          liqFair = item
+        }
+      }
+      if (row.kind === 'flag' && !flagFair) {
+        if (row.log.args.user?.toLowerCase() === liveAddr.borrowerFair.toLowerCase()) {
+          flagFair = row.log.args.startBlock ?? row.block
+        }
       }
     }
-    if (fromBlock === 0n) break
+    if (hitReset || fromBlock === 0n) break
   }
 
   return { liqFixed, liqFair, flagFair }

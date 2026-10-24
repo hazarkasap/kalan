@@ -1,5 +1,5 @@
 import { addressUrl, txUrl } from '../chain.ts'
-import type { Side } from '../data.ts'
+import type { BotName, Side } from '../data.ts'
 import { BigNumber } from './BigNumber.tsx'
 
 export type Status = 'Healthy' | 'Liquidatable' | 'Liquidated'
@@ -12,6 +12,8 @@ type PanelProps = {
   status: Status
   waiting?: boolean
   connecting?: boolean
+  blockNumber?: number
+  showRace?: boolean
 }
 
 function formatUsd(value: number) {
@@ -22,6 +24,8 @@ function premiumPct(bps: number) {
   return `${(bps / 100).toFixed(1)}%`
 }
 
+const BOTS: BotName[] = ['A', 'B', 'C']
+
 export function Panel({
   title,
   side,
@@ -30,8 +34,11 @@ export function Panel({
   status,
   waiting = false,
   connecting = false,
+  blockNumber,
+  showRace = false,
 }: PanelProps) {
   const kept = side.liquidated ? side.liquidated.toBorrowerEth * price : null
+  const liveBlock = side.liquidated?.blockNumber ?? blockNumber
 
   return (
     <section className={accent ? 'panel accent-panel' : 'panel'}>
@@ -39,7 +46,7 @@ export function Panel({
       <dl className="stats">
         <div>
           <dt>Collateral</dt>
-          <dd>{side.collateralEth} WETH</dd>
+          <dd>{side.collateralEth || '—'} WETH</dd>
         </div>
         <div>
           <dt>Debt</dt>
@@ -57,26 +64,59 @@ export function Panel({
         </div>
         <div>
           <dt>Premium</dt>
-          <dd className="num">{premiumPct(side.premiumBps)}</dd>
+          <dd className="num">
+            {premiumPct(side.premiumBps)}
+            {liveBlock != null && liveBlock > 0 ? (
+              <span className="blk"> · block {liveBlock}</span>
+            ) : null}
+          </dd>
         </div>
       </dl>
 
-      {side.liquidated && kept != null ? (
-        <div className="outcome">
-          <p className="winner">
-            Bot {side.liquidated.botName} won at {premiumPct(side.liquidated.premiumBps)}
-            {' · '}
-            <a href={addressUrl(side.liquidated.liquidator)} target="_blank" rel="noreferrer">
-              {side.liquidated.liquidator.slice(0, 6)}…{side.liquidated.liquidator.slice(-4)}
+      <div className={side.liquidated ? 'outcome' : 'outcome pending'}>
+        {side.liquidated && kept != null ? (
+          <>
+            {showRace ? (
+              <ul className="race">
+                {BOTS.map((name) =>
+                  name === side.liquidated?.botName ? (
+                    <li key={name} className="won">
+                      Bot {name} won at {premiumPct(side.liquidated.premiumBps)} in
+                      block {side.liquidated.blockNumber}
+                      {' · '}
+                      <a
+                        href={addressUrl(side.liquidated.liquidator)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {side.liquidated.liquidator.slice(0, 6)}…
+                        {side.liquidated.liquidator.slice(-4)}
+                      </a>
+                    </li>
+                  ) : (
+                    <li key={name} className="reverted">
+                      Bot {name} reverted
+                    </li>
+                  ),
+                )}
+              </ul>
+            ) : (
+              <p className="winner">
+                Bot {side.liquidated.botName} won at{' '}
+                {premiumPct(side.liquidated.premiumBps)} in block{' '}
+                {side.liquidated.blockNumber}
+                {' · '}
+                <a href={addressUrl(side.liquidated.liquidator)} target="_blank" rel="noreferrer">
+                  {side.liquidated.liquidator.slice(0, 6)}…{side.liquidated.liquidator.slice(-4)}
+                </a>
+              </p>
+            )}
+            <BigNumber accent={accent}>{`Borrower keeps $${formatUsd(kept)}`}</BigNumber>
+            <a className="tx" href={txUrl(side.liquidated.txHash)} target="_blank" rel="noreferrer">
+              view tx
             </a>
-          </p>
-          <BigNumber accent={accent}>{`Borrower keeps $${formatUsd(kept)}`}</BigNumber>
-          <a className="tx" href={txUrl(side.liquidated.txHash)} target="_blank" rel="noreferrer">
-            view tx
-          </a>
-        </div>
-      ) : (
-        <div className="outcome pending">
+          </>
+        ) : (
           <BigNumber>
             {connecting
               ? 'Connecting…'
@@ -86,8 +126,8 @@ export function Panel({
                   ? 'Position healthy'
                   : 'Auction running'}
           </BigNumber>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   )
 }

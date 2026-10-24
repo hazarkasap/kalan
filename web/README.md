@@ -8,4 +8,6 @@ npm install
 npm run dev
 ```
 
-Copy `VITE_FAIRLEND` (and later `web/src/deployments.json`) when contracts are live. Never put a private key here.
+Set `VITE_FAIRLEND=1` to read the live deployment (`src/deployments.json`). Never put a private key here.
+
+Admin UI (connected wallet = `admin()` only): Market crash → `setPrice(2300e18)`; Reset demo → `resetDemo()`. Never `setPrice(3000e18)` from the browser.

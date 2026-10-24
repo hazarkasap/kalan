@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { CrashButton } from './components/CrashButton.tsx'
+import { AdminBar } from './components/AdminBar.tsx'
 import { Header } from './components/Header.tsx'
 import { Panel, type Status } from './components/Panel.tsx'
 import {
@@ -22,10 +22,10 @@ function sideStatus(side: Side, price: number, connecting: boolean): Status {
 
 function settleCopy(fair: Side, connection: ReturnType<typeof useRun>['connection']) {
   if (connection === 'connecting') return 'Connecting…'
-  if (fair.liquidated && fair.liquidated.blockNumber && fair.flaggedAtBlock != null) {
-    const blocks = fair.liquidated.blockNumber - fair.flaggedAtBlock
+  if (fair.liquidated && fair.flaggedAtBlock != null) {
+    const blocks = Math.max(0, fair.liquidated.blockNumber - fair.flaggedAtBlock)
     const seconds = (blocks * BLOCK_MS) / 1000
-    return `Blocks to settle: ${blocks} · ~${seconds.toFixed(1)} s`
+    return `Settled in ${blocks} blocks ≈ ${seconds.toFixed(1)} s`
   }
   if (fair.liquidated) {
     return `Settled in block ${fair.liquidated.blockNumber}`
@@ -35,7 +35,7 @@ function settleCopy(fair: Side, connection: ReturnType<typeof useRun>['connectio
     const seconds = (remaining * BLOCK_MS) / 1000
     return `Waiting for block… ${remaining} left · ~${seconds.toFixed(1)} s`
   }
-  return 'Blocks to settle: — · waiting for crash'
+  return 'Last run · waiting for crash'
 }
 
 function App() {
@@ -56,19 +56,17 @@ function App() {
           RPC failed: {run.error}
         </div>
       ) : null}
-      {connecting ? (
-        <div className="banner">Connecting…</div>
-      ) : null}
+      {connecting ? <div className="banner">Connecting…</div> : null}
       <Header price={run.price} connecting={connecting} />
-      {USE_MOCK ? <CrashButton onCrash={triggerMockCrash} /> : null}
+      <AdminBar />
       <div className="panels">
         <Panel
           title="Fixed bonus (10%)"
           side={run.fixed}
           price={run.price}
           status={sideStatus(run.fixed, run.price, connecting)}
-          waiting={false}
           connecting={connecting}
+          blockNumber={run.blockNumber}
         />
         <Panel
           title="Kalan (fair auction)"
@@ -78,6 +76,8 @@ function App() {
           accent
           waiting={!connecting && run.fair.flaggedAtBlock != null && !run.fair.liquidated}
           connecting={connecting}
+          blockNumber={run.blockNumber}
+          showRace
         />
       </div>
       <footer className="settle">{settleCopy(run.fair, run.connection)}</footer>
