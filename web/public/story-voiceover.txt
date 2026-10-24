@@ -1,8 +1,0 @@
-1. [0–7s] When a crypto loan is liquidated, someone takes a cut. Kalan asks: how much is enough?
-2. [7–17s] Meet Alice. She deposits 1 Ether, worth $3,000, to borrow $2,000. Her crypto backs the loan. For now, there is enough.
-3. [17–27s] Then Ether falls to $2,300. Alice's loan is now unsafe. A liquidator must repay her debt, taking some collateral as a reward.
-4. [27–39s] With a fixed 10% bonus, the liquidator repays $2,000 and takes another $200. Alice keeps just $100. But what if someone would do it for less?
-5. [39–58s] Kalan starts the bonus at zero and raises it with each new block. Bots compete to repay the loan. The first one to accept the reward wins. Bot A accepts at 1.5%. The other bots arrive too late. Their transactions revert.
-6. [58–68s] Same loan, same crash. Alice keeps $270 instead of $100. That's 2.7 times as much. The liquidator still earns $30.
-7. [68–82s] Fast blocks make this practical. This Monad run took three blocks. Recorded timestamps differ by 1 second. At twelve seconds per step, an Ethereum model takes 36 seconds. Meanwhile, market prices can keep falling.
-8. [82–90s] A smaller cut. More left for the borrower. Kalan. Liquidations that give back. Now, watch it live.

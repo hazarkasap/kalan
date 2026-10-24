@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import { money, percent, ratio, storyData as d } from '../src/story/storyData.ts'
 import { duration, initialTime, sceneAt, scenes, starts } from '../src/story/scenes.ts'
 import { premiumStepPath } from '../src/components/premiumGeometry.ts'
@@ -66,7 +65,6 @@ test('captions remain short and cues fit their configured scenes', () => {
     for (const cue of scene.cues) {
       assert.ok(cue.at < scene.duration)
       assert.ok(cue.caption.split(/\s+/).length <= 14, cue.caption)
-      assert.ok(cue.voiceover.length > 0)
     }
   }
 })
@@ -74,11 +72,4 @@ test('chart geometry starts exactly at flag and stops exactly at winner', () => 
   const path = premiumStepPath(d.flagBlock, d.winBlock, b => b - d.flagBlock, b => (b - d.flagBlock) * d.stepBps)
   assert.equal(path, 'M0,0H1V50H2V100H3V150')
   assert.equal(premiumStepPath(10, 9, n => n, n => n), '')
-})
-test('downloadable voiceover stays synchronized with all eight scenes', async () => {
-  const lines = (await readFile(new URL('../public/story-voiceover.txt', import.meta.url), 'utf8')).trim().split('\n')
-  assert.equal(lines.length, scenes.length)
-  scenes.forEach((scene, i) => assert.ok(lines[i].endsWith(scene.cues.map(c => c.voiceover).join(' '))))
-  const words = scenes.flatMap(s => s.cues).map(c => c.voiceover).join(' ').split(/\s+/).length
-  assert.ok(words >= 180 && words <= 230)
 })

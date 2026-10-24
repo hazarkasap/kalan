@@ -91,14 +91,14 @@
 .story-control-row button[aria-pressed=true] { border-color: var(--accent); }
 .story-control-row kbd { color: var(--muted); margin-left: 8px; font-size: 11px; }
 .story-control-row > span { margin-left: auto; }
-.story-control-row a { color: var(--muted); margin-left: 16px; }
+.story-record-link { background: transparent; color: var(--muted); border: 1px dashed var(--border); padding: 9px 14px; border-radius: 4px; font-size: 14px; cursor: pointer; }
+.story-record-link:hover { color: var(--text); border-color: var(--accent); }
 .story-progress { height: 6px; background: var(--border); position: relative; margin: 0 12px 8px; }
 .story-progress-fill { position: absolute; inset: 0; background: var(--accent); transform-origin: left; }
 .story-progress button { position: absolute; top: -18px; width: 36px; height: 42px; transform: translateX(-50%); background: transparent; border: 0; color: var(--muted); }
 .story-progress button::after { content: ''; position: absolute; top: 16px; left: 16px; width: 4px; height: 10px; background: var(--bg); border: 1px solid var(--muted); }
 .story-progress button span { position: absolute; top: -3px; left: 14px; font-size: 11px; }
 .story-progress button[aria-current]::after { background: var(--accent); border-color: var(--accent); }
-.story-voice-error { position: fixed; bottom: 100px; right: 20px; background: var(--panel); padding: 12px; }
 .story-record { width: 1920px; height: 1080px; min-height: 1080px; padding: 50px 100px 34px; grid-template-rows: 36px 156px minmax(0, 1fr) 196px 24px; gap: 24px; }
 .story-record, .story-record * { cursor: none !important; }
 body:has(.story-record) { overflow: hidden; }
@@ -159,7 +159,6 @@ body:has(.story-record) { overflow: hidden; }
   .story:not(.story-record) .story-control-row { flex-wrap: wrap; gap: 8px; }
   .story:not(.story-record) .story-control-row kbd { display: none; }
   .story:not(.story-record) .story-control-row > span { margin: 0; }
-  .story:not(.story-record) .story-control-row a { margin-left: 0; }
   .story:not(.story-record) .story-controls { gap: 35px; }
 }
 @media (prefers-reduced-motion: reduce) {

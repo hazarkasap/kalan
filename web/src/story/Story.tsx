@@ -10,19 +10,25 @@ function CaptionLayer({ text, identity, delay }: { text: string; identity: strin
   </div>
 }
 
-function PlaybackControls({ time, playing, index, jump, toggle, narration, toggleNarration, speechAvailable }: {
+function PlaybackControls({ time, playing, index, jump, toggle }: {
   time: number; playing: boolean; index: number; jump: (index: number) => void; toggle: () => void
-  narration: boolean; toggleNarration: () => void; speechAvailable: boolean
 }) {
+  const recordUrl = () => {
+    const params = new URLSearchParams(location.search)
+    params.set('record', '1')
+    const scene = params.get('scene')
+    if (!scene) params.delete('scene')
+    const q = params.toString()
+    location.assign(q ? `/story?${q}` : '/story?record=1')
+  }
   return <nav className="story-controls" aria-label="Story playback">
     <div className="story-control-row">
       <button onClick={() => jump(index - 1)} disabled={index === 0} aria-label="Previous scene">←</button>
       <button onClick={toggle} aria-label={playing ? 'Pause story' : 'Play story'}>{playing ? 'Pause' : 'Play'} <kbd>Space</kbd></button>
       <button onClick={() => jump(index + 1)} disabled={index === scenes.length - 1} aria-label="Next scene">→</button>
       <button onClick={() => jump(0)}>Restart <kbd>R</kbd></button>
-      {speechAvailable && <button onClick={toggleNarration} aria-pressed={narration}>Voice {narration ? 'on' : 'off'} <kbd>N</kbd></button>}
+      <button type="button" className="story-record-link" onClick={recordUrl}>Record layout (1080p)</button>
       <span className="num">{Math.floor(time)} / {duration} s</span>
-      <a href="/story-voiceover.txt" download>Voiceover script ↓</a>
     </div>
     <div className="story-progress" aria-label="Scene navigation">
       <div className="story-progress-fill" style={{ transform: `scaleX(${time / duration})` }} />
@@ -35,13 +41,10 @@ export default function Story({ onExit }: { onExit: () => void }) {
   const [time, setTime] = useState(() => initialTime(location.search))
   const timeRef = useRef(time)
   const [playing, setPlaying] = useState(true)
-  const [narration, setNarration] = useState(false)
   const [seek, setSeek] = useState(0)
-  const [voiceError, setVoiceError] = useState('')
   const record = new URLSearchParams(location.search).get('record') === '1'
   const reduced = useReducedMotion()
   const { scene, index, local, cue, cueIndex } = sceneAt(time)
-  const speechAvailable = 'speechSynthesis' in window
   const jump = useCallback((index: number) => {
     const next = starts[Math.min(scenes.length - 1, Math.max(0, index))]
     timeRef.current = next
@@ -49,7 +52,6 @@ export default function Story({ onExit }: { onExit: () => void }) {
     setSeek(n => n + 1)
   }, [])
   const toggle = useCallback(() => setPlaying(p => !p), [])
-  const toggleNarration = useCallback(() => setNarration(n => !n), [])
 
   useEffect(() => {
     if (!playing) return
@@ -83,42 +85,16 @@ export default function Story({ onExit }: { onExit: () => void }) {
       if (event.repeat) return
       const key = event.key.toLowerCase()
       if (key === ' ' && ['BUTTON', 'A'].includes(target.tagName)) return
-      if (![' ', 'arrowleft', 'arrowright', 'r', 'n'].includes(key)) return
+      if (![' ', 'arrowleft', 'arrowright', 'r'].includes(key)) return
       event.preventDefault()
       if (key === ' ') toggle()
       if (key === 'arrowleft') jump(index - 1)
       if (key === 'arrowright') jump(index + 1)
       if (key === 'r') jump(0)
-      if (key === 'n' && speechAvailable) toggleNarration()
     }
     window.addEventListener('keydown', keyboard)
     return () => window.removeEventListener('keydown', keyboard)
-  }, [index, jump, toggle, toggleNarration, speechAvailable])
-
-  useEffect(() => {
-    if (!speechAvailable) return
-    speechSynthesis.cancel()
-    if (narration) {
-      speechSynthesis.resume()
-      const utterance = new SpeechSynthesisUtterance(cue.voiceover)
-      utterance.lang = 'en-US'
-      utterance.rate = 1
-      utterance.onerror = event => {
-        if (!['interrupted', 'canceled'].includes(event.error)) setVoiceError('Browser voice unavailable. Use the downloadable voiceover script.')
-      }
-      speechSynthesis.speak(utterance)
-      if (!playing) speechSynthesis.pause()
-    }
-    return () => speechSynthesis.cancel()
-    // Playback is controlled separately so pause/resume does not repeat the cue.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cue, narration, seek, speechAvailable])
-
-  useEffect(() => {
-    if (!speechAvailable || !narration) return
-    if (playing) speechSynthesis.resume()
-    else speechSynthesis.pause()
-  }, [playing, narration, speechAvailable])
+  }, [index, jump, toggle])
 
   return <main className={`story ${record ? 'story-record' : ''} ${!playing ? 'story-paused' : ''}`} data-scene={scene.id} aria-label="Kalan story mode">
     <header className="story-masthead"><a href="/" aria-label="Return to dashboard">Kalan<span> / STORY</span></a><span>MONAD TESTNET · VERIFIED RUN</span></header>
@@ -137,6 +113,6 @@ export default function Story({ onExit }: { onExit: () => void }) {
     </div>
     <CollateralBar scene={scene.id} reduced={reduced} />
     <footer className="story-source">One completed run · # {d.flagBlock} → {d.winBlock} · USD rounded to cents · Alice is a demo persona; collateral is WETH</footer>
-    {!record && <><PlaybackControls time={time} playing={playing} index={index} jump={jump} toggle={toggle} narration={narration} toggleNarration={toggleNarration} speechAvailable={speechAvailable} />{voiceError && <p className="story-voice-error" role="status">{voiceError}</p>}</>}
+    {!record && <PlaybackControls time={time} playing={playing} index={index} jump={jump} toggle={toggle} />}
   </main>
 }

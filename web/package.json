@@ -9,7 +9,6 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:story": "node --test tests/story.test.ts",
-    "story:voiceover": "node scripts/story-voiceover.ts",
     "story:capture": "node scripts/capture-story.mjs"
   },
   "dependencies": {
